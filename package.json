@@ -1,0 +1,26 @@
+{
+  "name": "taixiu-analyzer",
+  "version": "1.0.0",
+  "description": "Tai Xiu prediction analyzer with 84 AI models via WebSocket",
+  "main": "apisun.js",
+  "scripts": {
+    "start": "node apisun.js",
+    "dev": "node apisun.js"
+  },
+  "keywords": [
+    "taixiu",
+    "websocket",
+    "prediction",
+    "analyzer"
+  ],
+  "author": "@duybmw",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "ws": "^8.18.0",
+    "express": "^4.21.2",
+    "cors": "^2.8.5"
+  }
+}
