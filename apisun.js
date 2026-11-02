@@ -479,7 +479,7 @@ app.get("/api/md5/his", async () => {
 
 app.get("/", async () => { 
     return {
-        status: "ok sếp ơi",
+        status: "ONLINE sếp ơi",
         msg: " lc79 Pro - v26 Engine",
         version: "4.0",
         algorithms: "v24 + v25 + v26",
@@ -487,51 +487,40 @@ app.get("/", async () => {
     };
 });
 
-// 4. Endpoint thống kê chi tiết tổng ván, thắng, thua, tỷ lệ winrate
+// 5. Endpoint thống kê dạng văn bản tiếng Việt (GET /api/taixiumd5/stats/text)
 app.get("/api/md5/stats", async () => {
     const totalSessions = txHistory.length;
     if (totalSessions < 5) {
-        return {
-            success: true,
-            message: "Chưa đủ dữ liệu phiên để thống kê thắng thua (cần ít nhất 5 phiên).",
-            stats: { totalSessions, taiCount: 0, xiuCount: 0, wins: 0, losses: 0, winRate: "0%" }
-        };
+        return { message: "📊 Hệ thống chưa đủ dữ liệu phiên để thống kê (cần ít nhất 5 phiên)." };
     }
 
     let taiCount = 0;
     let xiuCount = 0;
     let wins = 0;
     let losses = 0;
-    let currentStreakType = null;
-    let currentStreakCount = 0;
 
-    // Chạy đánh giá ngược lại lịch sử (Backtest / Thực chiến mô phỏng) để tính chính xác thắng thua
-    // Bắt đầu từ phiên thứ 5 trở đi vì AI cần ít nhất 4 phiên để phân tích
+    // Backtest mô phỏng lại lịch sử dự đoán của AI
     for (let i = 4; i < txHistory.length; i++) {
         const pastSlice = txHistory.slice(0, i);
-        const actualResult = txHistory[i].tx; // 'T' hoặc 'X'
-        
-        // Gọi lại thuật toán dự đoán cho thời điểm đó
+        const actualResult = txHistory[i].tx;
         const pred = seiuManager.ensemble.predict(pastSlice);
-        const predictedSide = pred.rawPrediction; // 'T' hoặc 'X'
-
-        if (predictedSide === actualResult) {
+        
+        if (pred.rawPrediction === actualResult) {
             wins++;
         } else {
             losses++;
         }
     }
 
-    // Thống kê Tài / Xỉu tổng quan
     txHistory.forEach(s => {
         if (s.tx === 'T') taiCount++;
         else xiuCount++;
     });
 
     const totalPredictions = wins + losses;
-    const winRate = totalPredictions > 0 ? ((wins / totalPredictions) * 100).toFixed(1) + '%' : '0%';
+    const winRate = totalPredictions > 0 ? ((wins / totalPredictions) * 100).toFixed(1) : '0';
 
-    // Tính chuỗi kết quả thực tế gần nhất
+    // Tính chuỗi cầu thị trường hiện tại
     let streakType = txHistory[txHistory.length - 1].tx;
     let streakCount = 0;
     for (let i = txHistory.length - 1; i >= 0; i--) {
@@ -541,23 +530,19 @@ app.get("/api/md5/stats", async () => {
             break;
         }
     }
+    const marketStreakStr = `${streakType === 'T' ? 'TÀI' : 'XỈU'} (${streakCount} tay liên tiếp)`;
+
+    // Gom thành câu tiếng Việt hoàn chỉnh
+    const reportText = 
+        `📊 **THỐNG KÊ HỆ THỐNG AI TÀI XỈU MD5**\n` +
+        `• Tổng số phiên đã quét: ${totalSessions} phiên.\n` +
+        `• Tần suất thị trường: Tài xuất hiện ${taiCount} lần (${((taiCount/totalSessions)*100).toFixed(1)}%) | Xỉu xuất hiện ${xiuCount} lần (${((xiuCount/totalSessions)*100).toFixed(1)}%).\n` +
+        `• Hiệu suất thực chiến AI: Dự đoán ${totalPredictions} ván | Thắng: ${wins} ván | Thua: ${losses} ván | Tỷ lệ thắng (WinRate): ${winRate}%.\n` +
+        `• Tình trạng cầu hiện tại: Đang đi ${marketStreakStr}.`;
 
     return {
         success: true,
-        stats: {
-            totalSessions: totalSessions,
-            taiCount: taiCount,
-            xiuCount: xiuCount,
-            taiRate: ((taiCount / totalSessions) * 100).toFixed(1) + '%',
-            xiuRate: ((xiuCount / totalSessions) * 100).toFixed(1) + '%',
-            predictionStats: {
-                totalPredictions: totalPredictions,
-                wins: wins,
-                losses: losses,
-                winRate: winRate
-            },
-            marketStreak: `${streakType === 'T' ? 'TÀI' : 'XỈU'} (${streakCount} tay liên tiếp)`
-        }
+        report: reportText
     };
 });
 
