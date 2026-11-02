@@ -483,38 +483,80 @@ app.get("/", async () => {
         msg: " lc79 Pro - v26 Engine",
         version: "4.0",
         algorithms: "v24 + v25 + v26",
-        endpoints: ["/api/md5/lc79", "/api/md5/his"]
+        endpoints: ["/api/md5/lc79", "/api/md5/his", "/api/md5/stats"]
     };
 });
 
+// 4. Endpoint thống kê chi tiết tổng ván, thắng, thua, tỷ lệ winrate
 app.get("/api/md5/stats", async () => {
     const totalSessions = txHistory.length;
-    if (totalSessions === 0) {
-        return { 
-            success: true, 
-            stats: { 
-                totalSessions: 0, 
-                taiCount: 0, 
-                xiuCount: 0, 
-                taiRate: '0%', 
-                xiuRate: '0%',
-                currentStreak: null 
-            } 
+    if (totalSessions < 5) {
+        return {
+            success: true,
+            message: "Chưa đủ dữ liệu phiên để thống kê thắng thua (cần ít nhất 5 phiên).",
+            stats: { totalSessions, taiCount: 0, xiuCount: 0, wins: 0, losses: 0, winRate: "0%" }
         };
     }
 
-    let countT = txHistory.filter(s => s.tx === 'T').length;
-    let countX = totalSessions - countT;
+    let taiCount = 0;
+    let xiuCount = 0;
+    let wins = 0;
+    let losses = 0;
+    let currentStreakType = null;
+    let currentStreakCount = 0;
+
+    // Chạy đánh giá ngược lại lịch sử (Backtest / Thực chiến mô phỏng) để tính chính xác thắng thua
+    // Bắt đầu từ phiên thứ 5 trở đi vì AI cần ít nhất 4 phiên để phân tích
+    for (let i = 4; i < txHistory.length; i++) {
+        const pastSlice = txHistory.slice(0, i);
+        const actualResult = txHistory[i].tx; // 'T' hoặc 'X'
+        
+        // Gọi lại thuật toán dự đoán cho thời điểm đó
+        const pred = seiuManager.ensemble.predict(pastSlice);
+        const predictedSide = pred.rawPrediction; // 'T' hoặc 'X'
+
+        if (predictedSide === actualResult) {
+            wins++;
+        } else {
+            losses++;
+        }
+    }
+
+    // Thống kê Tài / Xỉu tổng quan
+    txHistory.forEach(s => {
+        if (s.tx === 'T') taiCount++;
+        else xiuCount++;
+    });
+
+    const totalPredictions = wins + losses;
+    const winRate = totalPredictions > 0 ? ((wins / totalPredictions) * 100).toFixed(1) + '%' : '0%';
+
+    // Tính chuỗi kết quả thực tế gần nhất
+    let streakType = txHistory[txHistory.length - 1].tx;
+    let streakCount = 0;
+    for (let i = txHistory.length - 1; i >= 0; i--) {
+        if (txHistory[i].tx === streakType) {
+            streakCount++;
+        } else {
+            break;
+        }
+    }
 
     return {
         success: true,
         stats: {
-            totalSessions,
-            taiCount: countT,
-            xiuCount: countX,
-            taiRate: ((countT / totalSessions) * 100).toFixed(1) + '%',
-            xiuRate: ((countX / totalSessions) * 100).toFixed(1) + '%',
-            currentStreak: txHistory.length > 0 ? txHistory[txHistory.length - 1].tx : null
+            totalSessions: totalSessions,
+            taiCount: taiCount,
+            xiuCount: xiuCount,
+            taiRate: ((taiCount / totalSessions) * 100).toFixed(1) + '%',
+            xiuRate: ((xiuCount / totalSessions) * 100).toFixed(1) + '%',
+            predictionStats: {
+                totalPredictions: totalPredictions,
+                wins: wins,
+                losses: losses,
+                winRate: winRate
+            },
+            marketStreak: `${streakType === 'T' ? 'TÀI' : 'XỈU'} (${streakCount} tay liên tiếp)`
         }
     };
 });
