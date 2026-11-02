@@ -429,7 +429,7 @@ clearInterval(fetchInterval);
 fetchInterval = setInterval(fetchAndProcessHistory, 5000);
 
 // API Endpoints
-app.get("/api/taixiumd5/lc79", async () => {
+app.get("/api/md5/lc79", async () => {
     const lastResult = txHistory.at(-1) || null;
     const currentPrediction = seiuManager.currentPrediction;
     const pattern = getComplexPattern(seiuManager.history);
@@ -465,7 +465,7 @@ app.get("/api/taixiumd5/lc79", async () => {
     };
 });
 
-app.get("/api/taixiumd5/history", async () => { 
+app.get("/api/md5/his", async () => { 
     if (!txHistory.length) return { message: "không có dữ liệu lịch sử." };
     const reversedHistory = [...txHistory].sort((a, b) => b.session - a.session);
     return reversedHistory.map((i) => ({
@@ -483,7 +483,39 @@ app.get("/", async () => {
         msg: " lc79 Pro - v26 Engine",
         version: "4.0",
         algorithms: "v24 + v25 + v26",
-        endpoints: ["/api/taixiumd5/lc79", "/api/taixiumd5/history"]
+        endpoints: ["/api/md5/lc79", "/api/md5/his"]
+    };
+});
+
+app.get("/api/md5/stats", async () => {
+    const totalSessions = txHistory.length;
+    if (totalSessions === 0) {
+        return { 
+            success: true, 
+            stats: { 
+                totalSessions: 0, 
+                taiCount: 0, 
+                xiuCount: 0, 
+                taiRate: '0%', 
+                xiuRate: '0%',
+                currentStreak: null 
+            } 
+        };
+    }
+
+    let countT = txHistory.filter(s => s.tx === 'T').length;
+    let countX = totalSessions - countT;
+
+    return {
+        success: true,
+        stats: {
+            totalSessions,
+            taiCount: countT,
+            xiuCount: countX,
+            taiRate: ((countT / totalSessions) * 100).toFixed(1) + '%',
+            xiuRate: ((countX / totalSessions) * 100).toFixed(1) + '%',
+            currentStreak: txHistory.length > 0 ? txHistory[txHistory.length - 1].tx : null
+        }
     };
 });
 
