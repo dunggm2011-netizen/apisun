@@ -68,7 +68,7 @@ function tx_models_v24(seq, tot) {
         let mx = Math.max(...lens);
         if (streak <= Math.max(2.0, avgL)) {
             add('Theo bệt trong ngưỡng', cur, 1.05 + Math.min(0.5, (avgL - streak) * 0.22));
-        } elseif (streak >= mx) {
+        } else if (streak >= mx) {
             add('Bệt vượt kỷ lục -> bẻ', anti, 1.55 + Math.min(0.8, (streak - mx) * 0.30));
         } else {
             add('Bệt quá trung bình -> canh bẻ', anti, 0.95 + Math.min(0.7, (streak - avgL) * 0.30));
